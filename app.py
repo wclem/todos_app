@@ -1,6 +1,4 @@
-import os
 import secrets
-from uuid import uuid4
 from functools import wraps
 from flask import (
     flash,
@@ -13,13 +11,11 @@ from flask import (
 )
 from werkzeug.exceptions import NotFound
 from todos.utils import (
-    delete_todo_by_id,
-    error_for_list_title, 
-    error_for_todo, 
+    error_for_list_title,
+    error_for_todo,
     find_todo_by_id,
     is_list_completed,
     is_todo_completed,
-    mark_all_completed,
     sort_items,
     todos_remaining,
 )
@@ -27,7 +23,7 @@ from todos.utils import (
 from todos.database_persistence import DatabasePersistence
 
 app = Flask(__name__)
-app.secret_key=secrets.token_hex(32)
+app.secret_key = secrets.token_hex(32)
 
 def require_list(f):
     @wraps(f)
@@ -108,34 +104,28 @@ def create_todo(lst, list_id):
 
     g.storage.create_new_todo(list_id, todo_title)
     flash("The todo was added.", "success")
-    #session.modified = True
     return redirect(url_for('show_list', list_id=list_id))
 
-@app.route("/lists/<int:list_id>/todos/<todo_id>/toggle", methods=["POST"])
+@app.route("/lists/<int:list_id>/todos/<int:todo_id>/toggle", methods=["POST"])
 @require_todo
 def update_todo_status(lst, todo, list_id, todo_id):
-    is_completed = (request.form['completed'] == 'True')
+    is_completed = request.form['completed'] == 'True'
     g.storage.update_todo_status(list_id, todo_id, is_completed)
     flash("The todo has been updated.", "success")
-    # session.modified = True
     return redirect(url_for('show_list', list_id=list_id))
 
-@app.route("/lists/<int:list_id>/todos/<todo_id>/delete", methods=["POST"])
+@app.route("/lists/<int:list_id>/todos/<int:todo_id>/delete", methods=["POST"])
 @require_todo
 def delete_todo(lst, todo, list_id, todo_id):
     g.storage.delete_todo_from_list(list_id, todo_id)
-
     flash("The todo has been deleted.", "success")
-    # session.modified = True
     return redirect(url_for('show_list', list_id=list_id))
 
 @app.route("/lists/<int:list_id>/complete_all", methods=["POST"])
 @require_list
-def mark_all_todos_completed(list_id):
+def mark_all_todos_completed(lst, list_id):
     g.storage.mark_all_todos_completed(list_id)
-
     flash("All todos have been updated.", "success")
-    # session.modified = True
     return redirect(url_for('show_list', list_id=list_id))
 
 @app.route("/lists/<int:list_id>/edit")
@@ -148,7 +138,6 @@ def edit_list(lst, list_id):
 def delete_list(lst, list_id):
     g.storage.delete_list(list_id)
     flash("The list has been deleted.", "success")
-    #session.modified = True
     return redirect(url_for('get_lists'))
 
 @app.route("/lists/<int:list_id>", methods=["POST"])
@@ -156,18 +145,14 @@ def delete_list(lst, list_id):
 def update_list(lst, list_id):
     title = request.form["list_title"].strip()
 
-    error = error_for_list_title(title, session['lists'])
+    error = error_for_list_title(title, g.storage.all_lists())
     if error:
         flash(error, "error")
         return render_template('edit_list.html', lst=lst, title=title)
 
     g.storage.update_list_by_id(list_id, title)
     flash("The list has been updated.", "success")
-    #session.modified = True
     return redirect(url_for('show_list', list_id=list_id))
 
 if __name__ == "__main__":
-    if os.environ.get('FLASK_ENV') == 'production':
-        app.run(debug=False)
-    else:
-        app.run(debug=True, port=5003)
+    app.run(debug=True, port=5003)
